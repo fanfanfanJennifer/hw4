@@ -1,81 +1,82 @@
-rm(list=ls())
+rm(list = ls())
 library("FITSio")
-file = dir("data/")
-cB58=readFrameFromFITS("cB58_Lyman_break.fit")
-
-#remove noise
-exp = function(y, x){
-  len=length(y)
-  z=rep(0,len)
-  z[1]=y[1]
+# Accept command-line arguments
+args <- commandArgs(trailingOnly = TRUE)
+if (length(args) != 2) {
+  cat("usage: Rscript hw4.R <template spectrum> <data directory>\n")
+  quit(status = 1)
+}
+template_spectrum <- args[1]
+data_directory <- args[2]
+# noise remove functions
+# exp smoothing function
+exp <- function(y, x) {
+  len <- length(y)
+  z <- rep(0, len)
+  z[1] <- y[1]
   for (i in 2:len) {
-    z[i]=x*y[i]+(1-x)*z[i-1]
+    z[i] <- x * y[i] + (1 - x) * z[i - 1]
   }
   return(z)
 }
 
-#finding local minimum
-min = function(y){
-  quantile = quantile(y, probs = 0.25)
-  len = length(y)
-  diff = diff(y)
-  min_i = rep(0,len)
-  for (i in 2:(len-2)) {
-    if (diff[i]<0 & diff[i-1]<0 & diff[i+1]>0 & y[i+1]<quantile) {
-      min_i[i+1]=i+1
-    }
+# moving_average_denoise function
+moving_average <- function(y, w) { # w is the window_size
+  n <- length(y)
+  z <- numeric(n)
+  for (i in 1:n) {
+    start <- max(1, i - w + 1)
+    end <- min(n, i + w - 1)
+    z[i] <- mean(y[start:end])
   }
-  min_i=min_i[which(min_i!=0)]
-  return(min_i)
+  return(z)
 }
 
-#organize flux and find cB58 minimum index
-cB58std = scale(cB58$FLUX)
-cB58len = length(cB58$FLUX)
-expcB58 = exp(cB58std, 0.05)
-cB58min_i = which.min(expcB58)
 
-#combine the empty values
-distance = c()
-spectrumID = c()
-i = c()
-for (name in file) {
-  spectrum = readFrameFromFITS(paste("data", name, sep = "/"))
+# Read template spectrum
+cB58 <- readFrameFromFITS(template_spectrum)
+
+# Read other files
+files <- list.files(data_directory, pattern = "\\.fits$", full.names = TRUE)
+
+# Define distances and shifts
+distances <- numeric(length(files))
+shifts <- numeric(length(files))
+
+# Search for the largest r
+for (i in 1:length(files)) {
+  # Read the ith spectrum
+  data <- readFrameFromFITS(files[i])
   
-#remove empty observations from and_mask
-  normal = length(which(spectrum$and_mask == 0))
-  if (normal > cB58len) {
-    spectrum$flux[which(spectrum$and_mask != 0)] = NA
-    flux = na.omit(spectrum$flux)
-  }
-  else {
-    flux = spectrum$flux
-  }
-  spectrum_standard = scale(flux)
-  expspectrum=exp(spectrum_standard, 0.05)
+  # Remove noise
+  data$flux <- moving_average(data$flux, 9)
+  # data$flux <- exp(data$flux, 0.1)
   
-#minimum expspectrum and correlation
-  m = min(expspectrum)
-  spectrumlength = length(expspectrum)
-  m = m[which(m>cB58min_i)]
-  m = m[which(m+cB58len<spectrumlength)] 
-  top = -1
-  for (tp in m) {
-    start_i = tp-cB58min_i
-    y = expspectrum[start_i:(start_i+cB58len-1)]
-    cor = cor(expcB58, y, method = "pearson")
-    if (cor > top) {
-      top = cor
-      begin_i = start_i
-    }
+  # Define correlations vector
+  correlations <- numeric(length(data$flux) - length(cB58$FLUX) + 1)
+  
+  # Calculate correlations one by one
+  for (j in 1:(length(data$flux) - length(cB58$FLUX) + 1)) {
+    # Remove the data that and_mask !=0
+    adjust_flux <- data$flux[j:(j + length(cB58$FLUX) - 1)]
+    adjust_mask <- data$and_mask[j:(j + length(cB58$FLUX) - 1)]
+    
+    data_subset <- adjust_flux[adjust_mask == 0]
+    cB58_subset <- cB58$FLUX[adjust_mask == 0]
+    
+    # Calculate the correlations for this data
+    correlations[j] <- cor(cB58_subset, data_subset)
   }
-  distance = c(distance, top)
-  distance = 1-distance
-  spectrumID = c(spectrumID, name)
-  i = c(i, begin_i)
+  
+  # Take the max correlations and mark the shift
+  distances[i] <- max(correlations)
+  shifts[i] <- which.max(correlations)
 }
 
-#create dataframe
-output <- data.frame(distance = distance, spectrumID = spectrumID, i = i)
-output <- output[order(output$distance),]
-write.csv(output, "hw4best100.csv", row.names = FALSE)
+# Write output to a CSV file
+output_file <- paste0(data_directory, ".csv")
+orders <- data.frame(distance = distances, spectrumID = basename(files), i = shifts)
+orders <- orders[order(distances), ]
+write.csv(orders, file = output_file, row.names = FALSE)
+
+
