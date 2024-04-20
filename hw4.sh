@@ -17,5 +17,5 @@ export R_LIBS=$PWD/packages
 tar -xzf $2.tgz
 
 # run your script
-Rscript myscript.R $1 $2 # note: the two actual command-line arguments
+Rscript hw4.R $1 $2 # note: the two actual command-line arguments
                          # are in myscript.sub's "arguments = " line
