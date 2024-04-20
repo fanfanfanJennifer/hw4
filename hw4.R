@@ -23,6 +23,7 @@ exp <- function(y, x) {
   return(z)
 }
 
+
 # moving_average_denoise function
 moving_average <- function(y, w) { # w is the window_size
   n <- length(y)
@@ -39,6 +40,7 @@ moving_average <- function(y, w) { # w is the window_size
 # Read template spectrum
 cB58 <- readFrameFromFITS(template_spectrum)
 
+
 # Read other files
 files <- list.files(data_directory, pattern = "\\.fits$", full.names = TRUE)
 
@@ -50,34 +52,32 @@ shifts <- numeric(length(files))
 for (i in 1:length(files)) {
   # Read the ith spectrum
   data <- readFrameFromFITS(files[i])
-  
+
   # Remove noise
   data$flux <- moving_average(data$flux, 9)
   # data$flux <- exp(data$flux, 0.1)
-  
+
   # Define correlations vector
   correlations <- numeric(length(data$flux) - length(cB58$FLUX) + 1)
-  
-  # Calculate correlations one by one
+# Calculate correlations one by one
   for (j in 1:(length(data$flux) - length(cB58$FLUX) + 1)) {
     # Remove the data that and_mask !=0
     adjust_flux <- data$flux[j:(j + length(cB58$FLUX) - 1)]
     adjust_mask <- data$and_mask[j:(j + length(cB58$FLUX) - 1)]
-    
+
     data_subset <- adjust_flux[adjust_mask == 0]
     cB58_subset <- cB58$FLUX[adjust_mask == 0]
-    
+
     # Calculate the correlations for this data
     correlations[j] <- cor(cB58_subset, data_subset)
   }
-  
+
   # Take the max correlations and mark the shift
   distances[i] <- max(correlations)
-  if(length(correlations)>0){
-    shifts[i] <- which.max(correlations)
-  }else{
+  if (length(correlations) == 0 || max(correlations, na.rm = TRUE) == 0 || any(is.na(correlations))) {
     shifts[i] <-0
-    
+  }else{
+    shifts[i]<- which.max(correlations)
   }
 }
 
@@ -86,8 +86,3 @@ output_file <- paste0(data_directory, ".csv")
 orders <- data.frame(distance = distances, spectrumID = basename(files), i = shifts)
 orders <- orders[order(distances), ]
 write.csv(orders, file = output_file, row.names = FALSE)
-
-# Report the first 3 files
-cat("Top 3 files:\n")
-print(orders[1:3, "spectrumID"])
-
