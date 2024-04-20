@@ -1,4 +1,7 @@
 rm(list = ls())
+options(repos = c(CRAN = "https://cloud.r-project.org"))
+
+install.packages("FITSio")
 library("FITSio")
 # Accept command-line arguments
 args <- commandArgs(trailingOnly = TRUE)
@@ -70,7 +73,12 @@ for (i in 1:length(files)) {
   
   # Take the max correlations and mark the shift
   distances[i] <- max(correlations)
-  shifts[i] <- which.max(correlations)
+  if(length(correlations)>0){
+    shifts[i] <- which.max(correlations)
+  }else{
+    shifts[i] <-0
+    
+  }
 }
 
 # Write output to a CSV file
@@ -79,4 +87,7 @@ orders <- data.frame(distance = distances, spectrumID = basename(files), i = shi
 orders <- orders[order(distances), ]
 write.csv(orders, file = output_file, row.names = FALSE)
 
+# Report the first 3 files
+cat("Top 3 files:\n")
+print(orders[1:3, "spectrumID"])
 
