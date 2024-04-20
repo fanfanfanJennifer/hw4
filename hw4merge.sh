@@ -1,9 +1,9 @@
+
 #!/bin/bash
-if [ ! -d res ]; then
-    mkdir res
-fi
-rm-r res
-mkdir res
-mv *.csv res
-num_file = 5
-sort -t',' -k1n res/*.csv | tail -n +$num_file | head -101 > hw4best100.csv
+
+sort -r -m *.csv > all.csv
+echo "distance,spectrumID,i" > hw4best100.csv
+uniq all.csv > cleaned.csv
+
+sort -r -n -t, -k1 cleaned.csv | head -100 >> hw4best100.csv
+
