@@ -88,5 +88,5 @@ for (i in 1:length(files)) {
 # Write output to a CSV file
 output_file <- paste0(data_directory, ".csv")
 orders <- data.frame(distance = distances, spectrumID = basename(files), i = shifts)
-orders <- orders[order(distances), decreasing=True]
+orders <- orders[order(-distances), ]
 write.csv(orders, file = output_file, row.names = FALSE)
