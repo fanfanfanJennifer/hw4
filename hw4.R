@@ -52,26 +52,29 @@ shifts <- numeric(length(files))
 for (i in 1:length(files)) {
   # Read the ith spectrum
   data <- readFrameFromFITS(files[i])
-
+  
   # Remove noise
   data$flux <- moving_average(data$flux, 9)
   # data$flux <- exp(data$flux, 0.1)
-
+  
   # Define correlations vector
+  if (length(data$flux) < length(cB58$FLUX)){
+    correlations=0
+  }
   correlations <- numeric(length(data$flux) - length(cB58$FLUX) + 1)
-# Calculate correlations one by one
+  # Calculate correlations one by one
   for (j in 1:(length(data$flux) - length(cB58$FLUX) + 1)) {
     # Remove the data that and_mask !=0
     adjust_flux <- data$flux[j:(j + length(cB58$FLUX) - 1)]
     adjust_mask <- data$and_mask[j:(j + length(cB58$FLUX) - 1)]
-
+    
     data_subset <- adjust_flux[adjust_mask == 0]
     cB58_subset <- cB58$FLUX[adjust_mask == 0]
-
+    
     # Calculate the correlations for this data
     correlations[j] <- cor(cB58_subset, data_subset)
   }
-
+  
   # Take the max correlations and mark the shift
   distances[i] <- max(correlations)
   if (length(correlations) == 0 || max(correlations, na.rm = TRUE) == 0 || any(is.na(correlations))) {
@@ -84,5 +87,5 @@ for (i in 1:length(files)) {
 # Write output to a CSV file
 output_file <- paste0(data_directory, ".csv")
 orders <- data.frame(distance = distances, spectrumID = basename(files), i = shifts)
-orders <- orders[order(distances), ]
+orders <- orders[order(distances), decreasing=True]
 write.csv(orders, file = output_file, row.names = FALSE)
