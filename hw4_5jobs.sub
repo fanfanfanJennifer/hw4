@@ -1,19 +1,23 @@
-# Before running this with "condor_submit myscript.sub", the
-# directories log, error, and output must exist.
 universe = vanilla
 log = log/hw4_5jobs.log
 error = error/hw4_5job-chtc_$(Cluster)_$(Process).err
 executable = ./hw4.sh
-num = $(Process) + 3586
-arguments = cB58_Lyman_break.fit $Item(num)
-output = output/hw4_1job-chtc_$(Cluster)_$(Process).out
+
+# Create a variable for the file name with integer
+
+
+arguments = cB58_Lyman_break.fit $(num)
+output = output/hw4_5job-chtc_$(Cluster)_$(Process).out
 
 should_transfer_files = YES
 when_to_transfer_output = ON_EXIT
-transfer_input_files = http://proxy.chtc.wisc.edu/SQUID/chtc/el8/R413.tar.gz, packages.tar.gz, hw4.R, /home/groups/STAT_DSCP/boss/cB58_Lyman_break.fit, hw4.sh, /home/groups/STAT_DSCP/boss/tgz/$Item(num).tgz
+transfer_input_files = http://proxy.chtc.wisc.edu/SQUID/chtc/el8/R413.tar.gz, packages.tar.gz, hw4.R, /home/groups/STAT_DSCP/boss/tgz/$(num).tgz,/home/groups/STAT_DSCP/boss/cB58_Lyman_break.fit
+
 request_cpus = 1
 request_memory = 1GB
 request_disk = 1GB
 
-queue 5
+queue num from data.txt
+
+
 
