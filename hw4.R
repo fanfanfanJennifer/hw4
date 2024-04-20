@@ -60,6 +60,7 @@ for (i in 1:length(files)) {
   # Define correlations vector
   if (length(data$flux) < length(cB58$FLUX)){
     correlations=0
+    next
   }
   correlations <- numeric(length(data$flux) - length(cB58$FLUX) + 1)
   # Calculate correlations one by one
